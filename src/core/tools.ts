@@ -153,12 +153,173 @@ const listFilesTool: ToolDefinition = {
   },
 };
 
+const searchFilesTool: ToolDefinition = {
+  name: "search_files",
+  description:
+    "Search for a text pattern across files using grep. Returns matching lines in file:line format.",
+  input_schema: {
+    type: "object",
+    properties: {
+      pattern: {
+        type: "string",
+        description: "The text or regex pattern to search for",
+      },
+      path: {
+        type: "string",
+        description:
+          "Relative directory path to search in (default: project root)",
+        default: ".",
+      },
+      include: {
+        type: "string",
+        description:
+          'Glob pattern to filter files (e.g. "*.ts", "*.py")',
+      },
+    },
+    required: ["pattern"],
+  },
+  async execute(input, cwd) {
+    const pattern = input.pattern as string;
+    if (!pattern) throw new Error("Missing pattern");
+    const searchPath = (input.path as string) || ".";
+    const include = input.include as string | undefined;
+    assertSandboxed(searchPath, cwd);
+
+    const args = ["-rn"];
+    if (include) {
+      args.push(`--include=${include}`);
+    }
+    args.push(pattern, searchPath);
+
+    try {
+      const { stdout } = await exec("/usr/bin/grep", args, {
+        cwd,
+        timeout: 15_000,
+        maxBuffer: 5 * 1024 * 1024,
+      });
+      return truncateText(stdout.trim(), 50_000).text;
+    } catch (err: any) {
+      // grep exits with code 1 when no matches found
+      if (err.code === 1) {
+        return "No matches found.";
+      }
+      const output = (err.stdout ?? "") + (err.stderr ?? "");
+      return `Search failed: ${output.trim()}`.slice(0, 10_000);
+    }
+  },
+};
+
+const applyDiffTool: ToolDefinition = {
+  name: "apply_diff",
+  description:
+    "Apply a unified diff patch to a file. The diff should use standard unified diff format with @@ hunks.",
+  input_schema: {
+    type: "object",
+    properties: {
+      path: {
+        type: "string",
+        description: "Relative path to the file to patch",
+      },
+      diff: {
+        type: "string",
+        description:
+          "The unified diff content (with @@ hunk headers and +/- lines)",
+      },
+    },
+    required: ["path", "diff"],
+  },
+  async execute(input, cwd) {
+    const path = input.path as string;
+    const diff = input.diff as string;
+    if (!path) throw new Error("Missing path");
+    if (!diff) throw new Error("Missing diff");
+    assertSandboxed(path, cwd);
+
+    const fullPath = resolve(cwd, path);
+    if (!existsSync(fullPath)) {
+      throw new Error(`File not found: ${path}`);
+    }
+
+    const original = await readFile(fullPath, "utf-8");
+    const lines = original.split("\n");
+
+    // Parse hunks from the diff
+    const hunkRegex = /^@@ -(\d+)(?:,\d+)? \+\d+(?:,\d+)? @@/;
+    const diffLines = diff.split("\n");
+    let linesAdded = 0;
+    let linesRemoved = 0;
+    let offset = 0; // track cumulative shift from prior hunks
+
+    let i = 0;
+    while (i < diffLines.length) {
+      const hunkMatch = hunkRegex.exec(diffLines[i]);
+      if (!hunkMatch) {
+        i++;
+        continue;
+      }
+
+      const startLine = parseInt(hunkMatch[1], 10) - 1; // 0-indexed
+      i++;
+
+      // Collect the hunk body
+      const removeLines: string[] = [];
+      const addLines: string[] = [];
+      const contextBefore: string[] = [];
+      let seenChange = false;
+
+      while (i < diffLines.length && !hunkRegex.test(diffLines[i])) {
+        const line = diffLines[i];
+        if (line.startsWith("-")) {
+          seenChange = true;
+          removeLines.push(line.slice(1));
+        } else if (line.startsWith("+")) {
+          seenChange = true;
+          addLines.push(line.slice(1));
+        } else if (line.startsWith(" ") || (line === "" && !seenChange)) {
+          if (!seenChange) {
+            contextBefore.push(line.startsWith(" ") ? line.slice(1) : line);
+          }
+        } else if (line.startsWith("\\")) {
+          // "\ No newline at end of file" — skip
+        } else {
+          break; // next hunk or end
+        }
+        i++;
+      }
+
+      // Find the position to apply changes, accounting for offset from prior hunks
+      const pos = startLine + contextBefore.length + offset;
+
+      // Verify the lines to remove actually match
+      for (let r = 0; r < removeLines.length; r++) {
+        if (pos + r >= lines.length || lines[pos + r] !== removeLines[r]) {
+          const found = lines[pos + r] ?? "<EOF>";
+          throw new Error(
+            "Diff mismatch at line " + (pos + r + 1) + ": expected \"" + removeLines[r] + "\", found \"" + found + "\"",
+          );
+        }
+      }
+
+      // Apply: splice out removed lines and insert added lines
+      lines.splice(pos, removeLines.length, ...addLines);
+      offset += addLines.length - removeLines.length;
+      linesAdded += addLines.length;
+      linesRemoved += removeLines.length;
+    }
+
+    await writeFile(fullPath, lines.join("\n"));
+    return `Applied diff to ${path}: ${linesRemoved} line(s) removed, ${linesAdded} line(s) added`;
+  },
+};
+
 // Tool registry
 const TOOL_REGISTRY = new Map<string, ToolDefinition>([
   ["bash", bashTool],
   ["read_file", readFileTool],
   ["write_file", writeFileTool],
   ["list_files", listFilesTool],
+  ["search_files", searchFilesTool],
+  ["apply_diff", applyDiffTool],
 ]);
 
 export const KNOWN_TOOLS = Array.from(TOOL_REGISTRY.keys());

@@ -18,6 +18,7 @@ export interface ExecuteOptions {
   cwd: string;
   config: DexConfig;
   logger: Logger;
+  captureOutput?: boolean;
 }
 
 async function collectContext(
@@ -130,17 +131,52 @@ function buildSkillContext(
 export async function executeSkill(
   skill: LoadedSkill,
   opts: ExecuteOptions,
-): Promise<void> {
+): Promise<string | void> {
   const { manifest, handler } = skill;
   const logger = opts.logger.child(manifest.name);
+  const captureOutput = opts.captureOutput ?? false;
 
   const context = await collectContext(manifest.inputs.context ?? [], opts);
   const agent = createAgent(opts.config);
-  const ctx = buildSkillContext(skill, context, agent, opts);
-
-  // Inject manifest agent config + spinner UX
-  const spinner = createSpinner();
   const manifestAgent = manifest.agent;
+
+  if (captureOutput) {
+    // ACP mode: wrap agent without spinner, capture stdout/stderr
+    const realAgent = agent;
+    const capturingAgent: AgentInterface = {
+      async *query(prompt, options) {
+        for await (const msg of realAgent.query(prompt, options)) {
+          yield msg;
+        }
+      },
+    };
+
+    const ctx = buildSkillContext(skill, context, capturingAgent, opts);
+
+    const chunks: string[] = [];
+    const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+    const originalStderrWrite = process.stderr.write.bind(process.stderr);
+
+    const capture = (chunk: string | Uint8Array, ...args: unknown[]) => {
+      chunks.push(String(chunk));
+      return true;
+    };
+
+    process.stdout.write = capture;
+    process.stderr.write = capture;
+    try {
+      await handler(ctx);
+    } finally {
+      process.stdout.write = originalStdoutWrite;
+      process.stderr.write = originalStderrWrite;
+    }
+
+    return chunks.join("");
+  }
+
+  // Interactive mode: spinner UX
+  const ctx = buildSkillContext(skill, context, agent, opts);
+  const spinner = createSpinner();
   let firstToken = false;
   const originalQuery = agent.query.bind(agent);
 
@@ -191,45 +227,11 @@ export async function executeSkill(
 
 /**
  * Execute a skill and capture output as a string (for ACP server).
+ * Thin alias for executeSkill with captureOutput: true.
  */
 export async function executeSkillForAcp(
   skill: LoadedSkill,
-  opts: ExecuteOptions,
+  opts: Omit<ExecuteOptions, "captureOutput">,
 ): Promise<string> {
-  const { manifest, handler } = skill;
-  const logger = opts.logger.child(manifest.name);
-
-  const context = await collectContext(manifest.inputs.context ?? [], opts);
-  const realAgent = createAgent(opts.config);
-
-  const capturingAgent: AgentInterface = {
-    async *query(prompt, options) {
-      for await (const msg of realAgent.query(prompt, options)) {
-        yield msg;
-      }
-    },
-  };
-
-  const ctx = buildSkillContext(skill, context, capturingAgent, opts);
-
-  // Capture both stdout and stderr
-  const chunks: string[] = [];
-  const originalStdoutWrite = process.stdout.write.bind(process.stdout);
-  const originalStderrWrite = process.stderr.write.bind(process.stderr);
-
-  const capture = (chunk: string | Uint8Array, ...args: unknown[]) => {
-    chunks.push(String(chunk));
-    return true;
-  };
-
-  process.stdout.write = capture;
-  process.stderr.write = capture;
-  try {
-    await handler(ctx);
-  } finally {
-    process.stdout.write = originalStdoutWrite;
-    process.stderr.write = originalStderrWrite;
-  }
-
-  return chunks.join("");
+  return (await executeSkill(skill, { ...opts, captureOutput: true })) as string;
 }

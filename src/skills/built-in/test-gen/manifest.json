@@ -1,0 +1,21 @@
+{
+  "name": "test-gen",
+  "version": "1.0.0",
+  "description": "Generate tests for a file",
+  "inputs": {
+    "args": [
+      { "name": "file", "description": "File to generate tests for", "required": true }
+    ],
+    "flags": [
+      {
+        "name": "framework",
+        "short": "f",
+        "type": "string",
+        "description": "Test framework (vitest, jest, mocha)",
+        "default": "vitest"
+      }
+    ],
+    "context": ["current-file", "file-tree", "package-json"]
+  },
+  "aliases": ["tg"]
+}

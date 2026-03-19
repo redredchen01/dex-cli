@@ -1,0 +1,9 @@
+{
+  "name": "commit-msg",
+  "version": "1.0.0",
+  "description": "Generate a commit message from staged changes",
+  "inputs": {
+    "context": ["git-diff-staged", "git-log"]
+  },
+  "aliases": ["cm"]
+}

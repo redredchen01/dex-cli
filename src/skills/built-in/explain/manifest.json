@@ -1,0 +1,11 @@
+{
+  "name": "explain",
+  "version": "1.0.0",
+  "description": "Explain code in a file or from stdin",
+  "inputs": {
+    "args": [
+      { "name": "file", "description": "File to explain", "required": false }
+    ],
+    "context": ["current-file", "stdin"]
+  }
+}

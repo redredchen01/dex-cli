@@ -1,0 +1,23 @@
+{
+  "name": "fix",
+  "version": "1.0.0",
+  "description": "Fix a bug or issue in a file using AI agent with tool use",
+  "inputs": {
+    "args": [
+      { "name": "file", "description": "File to fix", "required": true }
+    ],
+    "flags": [
+      {
+        "name": "issue",
+        "short": "i",
+        "type": "string",
+        "description": "Describe the issue to fix"
+      }
+    ],
+    "context": ["current-file", "file-tree"]
+  },
+  "agent": {
+    "maxTurns": 8,
+    "allowedTools": ["read_file", "write_file", "list_files", "bash"]
+  }
+}

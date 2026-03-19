@@ -1,0 +1,20 @@
+{
+  "name": "review",
+  "version": "1.0.0",
+  "description": "Code review for current changes",
+  "inputs": {
+    "flags": [
+      {
+        "name": "staged",
+        "short": "s",
+        "type": "boolean",
+        "description": "Only review staged changes",
+        "default": false
+      }
+    ],
+    "context": ["git-diff", "git-diff-staged", "file-tree", "stdin"]
+  },
+  "agent": {
+    "maxTurns": 1
+  }
+}

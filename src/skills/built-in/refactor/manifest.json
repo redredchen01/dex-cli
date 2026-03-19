@@ -1,0 +1,11 @@
+{
+  "name": "refactor",
+  "version": "1.0.0",
+  "description": "Suggest refactoring improvements for a file",
+  "inputs": {
+    "args": [
+      { "name": "file", "description": "File to refactor", "required": true }
+    ],
+    "context": ["current-file", "file-tree"]
+  }
+}

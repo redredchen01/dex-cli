@@ -1,0 +1,46 @@
+{
+  "name": "dex-cli",
+  "version": "1.0.0",
+  "description": "AI development tool with extensible Skill system and ACP protocol support",
+  "type": "module",
+  "bin": {
+    "dex": "./dist/bin/dex.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsup && node -e \"const fs=require('fs');const f='dist/bin/dex.js';fs.writeFileSync(f,'#!/usr/bin/env node\\n'+fs.readFileSync(f,'utf8'));fs.chmodSync(f,0o755)\" && node scripts/build-skills.js",
+    "dev": "tsx bin/dex.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "keywords": ["cli", "ai", "claude", "code-review", "acp", "agent", "skill"],
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "commander": "^12.0.0",
+    "zod": "^3.24.0",
+    "chalk": "^5.3.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "tsup": "^8.0.0",
+    "tsx": "^4.7.0",
+    "vitest": "^2.0.0",
+    "@types/node": "^22.0.0"
+  }
+}

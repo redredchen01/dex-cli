@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { loadBuiltInSkills, loadUserSkills } from "../loader.js";
+import { loadBuiltInSkills, loadUserSkills, loadProjectSkills } from "../loader.js";
 import { SkillRegistry } from "../registry.js";
 import { createLogger } from "../../core/logger.js";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
@@ -42,7 +42,7 @@ describe("loadBuiltInSkills", () => {
 
       expect(registry.has("test-skill")).toBe(true);
       expect(registry.has("ts")).toBe(true);
-      expect(registry.get("test-skill").builtIn).toBe(false);
+      expect(registry.get("test-skill").source).toBe("user");
     } finally {
       await rm(tmpDir, { recursive: true });
     }
@@ -83,7 +83,7 @@ describe("loadUserSkills", () => {
       await loadUserSkills(registry, [tmpDir], logger);
 
       expect(registry.has("my-skill")).toBe(true);
-      expect(registry.get("my-skill").builtIn).toBe(false);
+      expect(registry.get("my-skill").source).toBe("user");
     } finally {
       await rm(tmpDir, { recursive: true });
     }
@@ -144,6 +144,43 @@ describe("loadUserSkills", () => {
       await loadUserSkills(registry, [tmpDir], logger);
 
       expect(registry.list()).toHaveLength(0);
+    } finally {
+      await rm(tmpDir, { recursive: true });
+    }
+  });
+});
+
+describe("loadProjectSkills", () => {
+  it("should skip when .dex/skills/ does not exist", async () => {
+    const registry = new SkillRegistry();
+    await loadProjectSkills(registry, "/tmp/nonexistent-project-xxx", logger);
+    expect(registry.list()).toHaveLength(0);
+  });
+
+  it("should load a valid project skill", async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), "dex-project-"));
+    const skillDir = join(tmpDir, ".dex", "skills", "team-skill");
+    try {
+      await mkdir(skillDir, { recursive: true });
+      await writeFile(
+        join(skillDir, "manifest.json"),
+        JSON.stringify({
+          name: "team-skill",
+          version: "0.1.0",
+          description: "A project team skill",
+          inputs: {},
+        }),
+      );
+      await writeFile(
+        join(skillDir, "handler.ts"),
+        "export default async function() {}",
+      );
+
+      const registry = new SkillRegistry();
+      await loadProjectSkills(registry, tmpDir, logger);
+
+      expect(registry.has("team-skill")).toBe(true);
+      expect(registry.get("team-skill").source).toBe("project");
     } finally {
       await rm(tmpDir, { recursive: true });
     }

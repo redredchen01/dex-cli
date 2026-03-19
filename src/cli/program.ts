@@ -6,7 +6,7 @@ import chalk from "chalk";
 import { loadConfig, getGlobalConfigDir } from "../core/config.js";
 import { createLogger } from "../core/logger.js";
 import { SkillRegistry } from "../skills/registry.js";
-import { loadBuiltInSkills, loadUserSkills } from "../skills/loader.js";
+import { loadBuiltInSkills, loadUserSkills, loadProjectSkills } from "../skills/loader.js";
 import { registerSkillShortcuts } from "./shortcuts.js";
 import { createRunCommand } from "./commands/run.js";
 import { createServeCommand } from "./commands/serve.js";
@@ -39,6 +39,9 @@ export async function createProgram(): Promise<Command> {
     ...config.skillDirs,
   ];
   await loadUserSkills(registry, userSkillDirs, logger);
+
+  // Load project-level skills from .dex/skills/
+  await loadProjectSkills(registry, process.cwd(), logger);
 
   logger.debug(`Loaded ${registry.list().length} skills`);
 
@@ -89,12 +92,18 @@ export async function createProgram(): Promise<Command> {
         return;
       }
       await mkdir(dir, { recursive: true });
+      await mkdir(join(dir, "skills"), { recursive: true });
       const { writeFile } = await import("node:fs/promises");
       await writeFile(
         join(dir, "config.json"),
         JSON.stringify({}, null, 2) + "\n",
       );
       console.log(chalk.green("Initialized .dex/ in current directory."));
+      console.log(
+        chalk.gray(
+          "Add skills to .dex/skills/ to share with your team.",
+        ),
+      );
 
       // Show setup hint if API key is not configured
       if (!config.apiKey && !process.env.ANTHROPIC_API_KEY) {

@@ -32,7 +32,7 @@ function makeSkill(handler: (ctx: SkillContext) => Promise<void>): LoadedSkill {
     },
     handler,
     path: "/test",
-    builtIn: false,
+    source: "user",
   };
 }
 

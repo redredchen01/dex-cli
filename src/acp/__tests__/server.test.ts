@@ -45,7 +45,7 @@ function makeSkill(name: string): LoadedSkill {
     },
     handler: async () => {},
     path: `/skills/${name}`,
-    builtIn: true,
+    source: "built-in",
   };
 }
 

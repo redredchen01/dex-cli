@@ -39,7 +39,7 @@ function getBuiltInPath(logger: Logger): string | null {
 
 async function loadSkillFromDir(
   dir: string,
-  builtIn: boolean,
+  source: "built-in" | "user" | "project",
   logger: Logger,
 ): Promise<LoadedSkill | null> {
   const manifestPath = join(dir, "manifest.json");
@@ -71,7 +71,7 @@ async function loadSkillFromDir(
       return null;
     }
 
-    return { manifest, handler, path: dir, builtIn };
+    return { manifest, handler, path: dir, source };
   } catch (err) {
     logger.warn(
       `Failed to load skill from ${dir}: ${err instanceof Error ? err.message : err}`,
@@ -92,7 +92,7 @@ export async function loadBuiltInSkills(
     if (!entry.isDirectory()) continue;
     const skill = await loadSkillFromDir(
       join(builtInPath, entry.name),
-      true,
+      "built-in",
       logger,
     );
     if (skill) {
@@ -115,13 +115,36 @@ export async function loadUserSkills(
       if (!entry.isDirectory()) continue;
       const skill = await loadSkillFromDir(
         join(dir, entry.name),
-        false,
+        "user",
         logger,
       );
       if (skill) {
         registry.register(skill);
         logger.debug(`Loaded user skill: ${skill.manifest.name}`);
       }
+    }
+  }
+}
+
+export async function loadProjectSkills(
+  registry: SkillRegistry,
+  cwd: string,
+  logger: Logger,
+): Promise<void> {
+  const projectSkillsDir = join(cwd, ".dex", "skills");
+  if (!existsSync(projectSkillsDir)) return;
+
+  const entries = await readdir(projectSkillsDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const skill = await loadSkillFromDir(
+      join(projectSkillsDir, entry.name),
+      "project",
+      logger,
+    );
+    if (skill) {
+      registry.register(skill);
+      logger.debug(`Loaded project skill: ${skill.manifest.name}`);
     }
   }
 }

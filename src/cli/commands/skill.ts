@@ -51,9 +51,12 @@ export function createSkillCommand(
 
       console.log(chalk.bold("\nAvailable Skills:\n"));
       for (const skill of skills) {
-        const tag = skill.builtIn
-          ? chalk.gray(" [built-in]")
-          : chalk.cyan(" [user]");
+        const tagMap = {
+          "built-in": chalk.gray(" [built-in]"),
+          user: chalk.cyan(" [user]"),
+          project: chalk.magenta(" [project]"),
+        };
+        const tag = tagMap[skill.source];
         const aliases = skill.manifest.aliases?.length
           ? chalk.gray(` (aliases: ${skill.manifest.aliases.join(", ")})`)
           : "";
@@ -76,7 +79,7 @@ export function createSkillCommand(
       console.log(chalk.bold(`\n${m.name} v${m.version}`));
       console.log(`${m.description}\n`);
       console.log(`  Path: ${skill.path}`);
-      console.log(`  Built-in: ${skill.builtIn}`);
+      console.log(`  Source: ${skill.source}`);
       if (m.aliases?.length) {
         console.log(`  Aliases: ${m.aliases.join(", ")}`);
       }

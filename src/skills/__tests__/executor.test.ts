@@ -27,7 +27,7 @@ function makeTestSkill(
     },
     handler,
     path: "/test",
-    builtIn: false,
+    source: "user",
   };
 }
 

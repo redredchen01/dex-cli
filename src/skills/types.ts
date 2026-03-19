@@ -88,5 +88,5 @@ export interface LoadedSkill {
   manifest: SkillManifest;
   handler: SkillHandler;
   path: string;
-  builtIn: boolean;
+  source: "built-in" | "user" | "project";
 }

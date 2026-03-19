@@ -15,6 +15,7 @@ import { createConfigCommand } from "./commands/config.js";
 import { createDoctorCommand } from "./commands/doctor.js";
 import { createCompletionCommand } from "./commands/completion.js";
 import { createChatCommand } from "./commands/chat.js";
+import { createLoginCommand, createLogoutCommand } from "./commands/login.js";
 import { getVersion } from "../core/version.js";
 
 export async function createProgram(): Promise<Command> {
@@ -72,6 +73,8 @@ export async function createProgram(): Promise<Command> {
   program.addCommand(createDoctorCommand(config, registry));
   program.addCommand(createCompletionCommand(registry));
   program.addCommand(createChatCommand(config, logger));
+  program.addCommand(createLoginCommand(config));
+  program.addCommand(createLogoutCommand());
 
   // Init command
   program
@@ -95,10 +98,8 @@ export async function createProgram(): Promise<Command> {
       if (!config.apiKey && !process.env.ANTHROPIC_API_KEY) {
         console.log(
           chalk.yellow(
-            "\nAPI key not configured. Set it with:\n" +
-              "  export ANTHROPIC_API_KEY=<your-key>\n" +
-              "  # or\n" +
-              "  dex config set apiKey <your-key>\n",
+            "\nAPI key not configured. Run:\n" +
+              "  dex login\n",
           ),
         );
       }

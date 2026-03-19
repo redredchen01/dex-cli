@@ -5,6 +5,8 @@ import type { Logger } from "../core/logger.js";
 import { UsageTracker } from "../core/usage.js";
 import { executeSkillForAcp } from "../skills/executor.js";
 import { getDashboardHtml } from "./dashboard.js";
+import { KNOWN_TOOLS, getToolsForSkill, executeToolCall } from "../core/tools.js";
+import { createAgent } from "../core/agent.js";
 
 function corsHeaders(): Record<string, string> {
   return {
@@ -44,6 +46,197 @@ function maskApiKey(key: string | undefined): string {
   if (!key) return "(not set)";
   if (key.length <= 8) return "****";
   return key.slice(0, 4) + "..." + key.slice(-4);
+}
+
+function buildOpenApiSchema(): Record<string, unknown> {
+  return {
+    openapi: "3.0.3",
+    info: {
+      title: "Dex REST API",
+      description: "REST API for the Dex AI development tool. Enables agent integration via HTTP.",
+      version: "1.1.0",
+    },
+    paths: {
+      "/api/skills": {
+        get: {
+          summary: "List registered skills",
+          operationId: "listSkills",
+          responses: {
+            "200": {
+              description: "Array of registered skills",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string" },
+                        description: { type: "string" },
+                        source: { type: "string", enum: ["built-in", "user", "project"] },
+                        version: { type: "string" },
+                        aliases: { type: "array", items: { type: "string" } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/run": {
+        post: {
+          summary: "Execute a registered skill",
+          operationId: "runSkill",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["skill"],
+                  properties: {
+                    skill: { type: "string", description: "Name of the skill to execute" },
+                    args: { type: "object", additionalProperties: { type: "string" }, description: "Positional arguments" },
+                    flags: { type: "object", additionalProperties: {}, description: "Flags for the skill" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Skill output",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      output: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid request" },
+            "404": { description: "Unknown skill" },
+            "500": { description: "Execution error" },
+          },
+        },
+      },
+      "/api/tools": {
+        get: {
+          summary: "List built-in tools",
+          operationId: "listTools",
+          responses: {
+            "200": {
+              description: "Array of available tools",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string" },
+                        description: { type: "string" },
+                        input_schema: { type: "object" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/tools/call": {
+        post: {
+          summary: "Execute a built-in tool directly",
+          operationId: "callTool",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["name", "input"],
+                  properties: {
+                    name: { type: "string", description: "Tool name (e.g. search_files, bash)" },
+                    input: { type: "object", additionalProperties: {}, description: "Tool input parameters" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Tool execution result",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      result: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid request" },
+            "404": { description: "Unknown tool" },
+            "500": { description: "Execution error" },
+          },
+        },
+      },
+      "/api/chat": {
+        post: {
+          summary: "Stateless chat endpoint for agent integration",
+          operationId: "chat",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["message"],
+                  properties: {
+                    message: { type: "string", description: "The chat message / prompt" },
+                    tools: { type: "boolean", description: "Whether to enable built-in tools", default: false },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Chat response with usage stats",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      response: { type: "string" },
+                      usage: {
+                        type: "object",
+                        properties: {
+                          inputTokens: { type: "integer" },
+                          outputTokens: { type: "integer" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid request" },
+            "500": { description: "Chat error" },
+          },
+        },
+      },
+    },
+  };
 }
 
 export interface WebServerOptions {
@@ -105,6 +298,109 @@ export function createWebServer(opts: WebServerOptions) {
           safeConfig.activeProfile = config.activeProfile;
         }
         json(res, safeConfig);
+        return;
+      }
+
+      if (req.method === "GET" && path === "/api/openapi.json") {
+        json(res, buildOpenApiSchema());
+        return;
+      }
+
+      if (req.method === "GET" && path === "/api/tools") {
+        const tools = getToolsForSkill(KNOWN_TOOLS).map((t) => ({
+          name: t.name,
+          description: t.description,
+          input_schema: t.input_schema,
+        }));
+        json(res, tools);
+        return;
+      }
+
+      if (req.method === "POST" && path === "/api/tools/call") {
+        const body = await readBody(req);
+        let parsed: { name?: string; input?: Record<string, unknown> };
+        try {
+          parsed = JSON.parse(body);
+        } catch {
+          json(res, { error: "Invalid JSON body" }, 400);
+          return;
+        }
+
+        const toolName = parsed.name;
+        if (!toolName || typeof toolName !== "string") {
+          json(res, { error: "Missing tool name" }, 400);
+          return;
+        }
+        if (!KNOWN_TOOLS.includes(toolName)) {
+          json(res, { error: `Unknown tool: ${toolName}` }, 404);
+          return;
+        }
+
+        try {
+          const result = await executeToolCall(
+            toolName,
+            parsed.input ?? {},
+            process.cwd(),
+            KNOWN_TOOLS,
+          );
+          json(res, { result });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Tool execution failed";
+          json(res, { error: message }, 500);
+        }
+        return;
+      }
+
+      if (req.method === "POST" && path === "/api/chat") {
+        const body = await readBody(req);
+        let parsed: { message?: string; tools?: boolean };
+        try {
+          parsed = JSON.parse(body);
+        } catch {
+          json(res, { error: "Invalid JSON body" }, 400);
+          return;
+        }
+
+        const message = parsed.message;
+        if (!message || typeof message !== "string") {
+          json(res, { error: "Missing message" }, 400);
+          return;
+        }
+
+        try {
+          const agent = createAgent(config);
+          const enableTools = parsed.tools === true;
+          const textChunks: string[] = [];
+          let usageInfo = { inputTokens: 0, outputTokens: 0 };
+
+          for await (const msg of agent.query(message, {
+            tools: enableTools ? KNOWN_TOOLS : undefined,
+            cwd: process.cwd(),
+          })) {
+            if (msg.type === "text" && msg.content) {
+              textChunks.push(msg.content);
+            }
+            if (msg.type === "done" && msg.content) {
+              try {
+                const usage = JSON.parse(msg.content);
+                usageInfo = {
+                  inputTokens: usage.inputTokens ?? 0,
+                  outputTokens: usage.outputTokens ?? 0,
+                };
+              } catch {
+                // ignore parse errors on done message
+              }
+            }
+          }
+
+          json(res, {
+            response: textChunks.join(""),
+            usage: usageInfo,
+          });
+        } catch (err) {
+          const message_ = err instanceof Error ? err.message : "Chat failed";
+          json(res, { error: message_ }, 500);
+        }
         return;
       }
 

@@ -12,6 +12,10 @@ export function stripTypes(code: string): string {
     // Remove type annotations on variables/parameters (`: Type`)
     .replace(/:\s*SkillHandler/g, "")
     .replace(/:\s*SkillContext/g, "")
+    // Remove function parameter type annotations (`: string`, `: string[]`, etc.)
+    .replace(/:\s*(?:string|number|boolean)(?:\[\])?/g, "")
+    // Remove return type annotations like `): Promise<...> {`
+    .replace(/\):\s*Promise<[^>]*>\s*\{/g, ") {")
     // Remove `as type` casts
     .replace(/\s+as\s+(string|boolean|number)/g, "");
 }

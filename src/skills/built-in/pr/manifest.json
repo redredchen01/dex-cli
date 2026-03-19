@@ -1,0 +1,12 @@
+{
+  "name": "pr",
+  "version": "1.0.0",
+  "description": "Generate a pull request description",
+  "inputs": {
+    "flags": [
+      { "name": "base", "short": "b", "type": "string", "description": "Base branch (default: main)", "default": "main" }
+    ],
+    "context": ["git-log", "git-diff", "file-tree"]
+  },
+  "aliases": ["pull-request"]
+}

@@ -12,6 +12,8 @@ function stripTypes(code) {
     .replace(/^import\s+type\s+\{[^}]*\}\s+from\s+['"][^'"]+['"];?\s*$/gm, "")
     .replace(/:\s*SkillHandler/g, "")
     .replace(/:\s*SkillContext/g, "")
+    .replace(/:\s*(?:string|number|boolean)(?:\[\])?/g, "")
+    .replace(/\):\s*Promise<[^>]*>\s*\{/g, ") {")
     .replace(/\s+as\s+(string|boolean|number)/g, "");
 }
 

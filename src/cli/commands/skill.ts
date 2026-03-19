@@ -1,13 +1,18 @@
 import { Command } from "commander";
-import { mkdir, writeFile, readFile, cp, rm } from "node:fs/promises";
+import { mkdir, writeFile, readFile, cp, rm, symlink } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { existsSync } from "node:fs";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { homedir } from "node:os";
 import chalk from "chalk";
 import type { SkillRegistry } from "../../skills/registry.js";
 import { validateManifest } from "../../skills/validator.js";
 import { getGlobalConfigDir } from "../../core/config.js";
 import { stripTypes } from "../../utils/typescript.js";
 import type { Logger } from "../../core/logger.js";
+
+const execFileAsync = promisify(execFile);
 
 // Skill names must be lowercase alphanumeric with hyphens (no path traversal)
 const VALID_SKILL_NAME = /^[a-z][a-z0-9-]*$/;
@@ -223,6 +228,112 @@ export default handler;
       await rm(dir, { recursive: true });
       registry.remove(name);
       console.log(chalk.green(`Removed skill "${name}".`));
+    });
+
+  cmd
+    .command("search")
+    .description("Search npm for dex skills")
+    .argument("<query>", "Search query")
+    .action(async (query: string) => {
+      const url = `https://registry.npmjs.org/-/v1/search?text=keywords:dex-skill+${encodeURIComponent(query)}&size=10`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          logger.error(`npm registry returned ${res.status}: ${res.statusText}`);
+          return;
+        }
+        const data = (await res.json()) as {
+          objects: Array<{
+            package: { name: string; description?: string; version: string };
+          }>;
+        };
+        if (!data.objects || data.objects.length === 0) {
+          console.log("No skills found matching your query.");
+          return;
+        }
+        console.log(chalk.bold("\nSkill Marketplace Results:\n"));
+        for (const obj of data.objects) {
+          const pkg = obj.package;
+          console.log(
+            `  ${chalk.green(pkg.name)} ${chalk.gray(`v${pkg.version}`)}`,
+          );
+          console.log(`    ${pkg.description ?? "No description"}`);
+        }
+        console.log();
+      } catch (err) {
+        logger.error(
+          `Failed to search npm: ${err instanceof Error ? err.message : err}`,
+        );
+      }
+    });
+
+  cmd
+    .command("install")
+    .description("Install a skill from npm")
+    .argument("<package>", "npm package name")
+    .action(async (pkg: string) => {
+      const dexDir = join(homedir(), ".dex");
+      await mkdir(dexDir, { recursive: true });
+
+      try {
+        console.log(chalk.gray(`Installing ${pkg} from npm...`));
+        await execFileAsync("npm", ["install", "--prefix", dexDir, pkg]);
+      } catch (err) {
+        logger.error(
+          `npm install failed: ${err instanceof Error ? err.message : err}`,
+        );
+        return;
+      }
+
+      // Determine the actual directory name (strip scope if present)
+      const pkgDirName = pkg.startsWith("@") ? pkg.split("/")[1]! : pkg;
+      const installedDir = join(dexDir, "node_modules", pkg);
+
+      if (!existsSync(installedDir)) {
+        logger.error(`Package directory not found after install: ${installedDir}`);
+        return;
+      }
+
+      // Read manifest.json from the installed package
+      const manifestPath = join(installedDir, "manifest.json");
+      if (!existsSync(manifestPath)) {
+        logger.error(
+          `No manifest.json found in ${pkg}. Is this a valid dex skill?`,
+        );
+        return;
+      }
+
+      let manifest;
+      try {
+        const raw = JSON.parse(await readFile(manifestPath, "utf-8"));
+        manifest = validateManifest(raw);
+      } catch (err) {
+        logger.error(
+          `Invalid manifest: ${err instanceof Error ? err.message : err}`,
+        );
+        return;
+      }
+
+      const skillsDir = join(dexDir, "skills");
+      const destDir = join(skillsDir, manifest.name);
+      await mkdir(skillsDir, { recursive: true });
+
+      // Remove existing skill directory/symlink if present
+      if (existsSync(destDir)) {
+        await rm(destDir, { recursive: true });
+      }
+
+      // Copy the installed package into the skills directory
+      await cp(installedDir, destDir, { recursive: true });
+
+      // Compile handler.ts → handler.js if needed
+      await compileHandlerIfNeeded(destDir);
+
+      console.log(
+        chalk.green(
+          `Successfully installed skill "${manifest.name}" from ${pkg}`,
+        ),
+      );
     });
 
   return cmd;

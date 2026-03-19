@@ -1,5 +1,5 @@
 {
-  "name": "dex-cli",
+  "name": "dexai-cli",
   "version": "1.1.0",
   "description": "AI development tool with extensible Skill system and ACP protocol support",
   "type": "module",

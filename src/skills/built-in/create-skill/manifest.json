@@ -1,0 +1,30 @@
+{
+  "name": "create-skill",
+  "version": "1.0.0",
+  "description": "Generate a new dex skill from a natural language description",
+  "inputs": {
+    "args": [
+      { "name": "name", "description": "Skill name (lowercase-with-hyphens)", "required": true }
+    ],
+    "flags": [
+      {
+        "name": "description",
+        "short": "d",
+        "type": "string",
+        "description": "What the skill should do"
+      },
+      {
+        "name": "install",
+        "type": "boolean",
+        "description": "Automatically install after creation",
+        "default": false
+      }
+    ],
+    "context": ["file-tree"]
+  },
+  "agent": {
+    "maxTurns": 10,
+    "allowedTools": ["read_file", "write_file", "list_files", "bash"]
+  },
+  "aliases": ["new-skill"]
+}

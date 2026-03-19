@@ -1,7 +1,10 @@
 /**
- * Truncate text to stay within a character budget.
- * Roughly 1 token ≈ 4 characters for English/code.
+ * Text utilities: truncation, token estimation, and stdin reading.
  */
+
+// ---------------------------------------------------------------------------
+// Truncation
+// ---------------------------------------------------------------------------
 
 const DEFAULT_MAX_CHARS = 40_000; // ~10K tokens
 
@@ -41,4 +44,24 @@ export function truncateText(
  */
 export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
+}
+
+// ---------------------------------------------------------------------------
+// Stdin
+// ---------------------------------------------------------------------------
+
+/**
+ * Read all data from stdin if piped (non-TTY).
+ * Returns null if stdin is a TTY (interactive).
+ */
+export async function readStdin(): Promise<string | null> {
+  if (process.stdin.isTTY) return null;
+
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(Buffer.from(chunk));
+  }
+
+  const text = Buffer.concat(chunks).toString("utf-8").trim();
+  return text.length > 0 ? text : null;
 }

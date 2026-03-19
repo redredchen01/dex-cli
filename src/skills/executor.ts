@@ -4,14 +4,13 @@ import type { DexConfig } from "../core/config.js";
 import type { Logger } from "../core/logger.js";
 import { createAgent } from "../core/agent.js";
 import { createSpinner } from "../utils/spinner.js";
-import { truncateText } from "../utils/truncate.js";
+import { truncateText, readStdin } from "../utils/text.js";
 import {
   getGitDiff,
   getGitDiffStaged,
   getGitLog,
 } from "../utils/git.js";
 import { getFileTree, readFileContent, readPackageJson } from "../utils/fs.js";
-import { readStdin } from "../utils/stdin.js";
 
 export interface ExecuteOptions {
   args: Record<string, string>;

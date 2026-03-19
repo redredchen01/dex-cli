@@ -4,7 +4,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join, resolve, dirname } from "node:path";
 import { existsSync } from "node:fs";
 import { getFileTree } from "../utils/fs.js";
-import { truncateText } from "../utils/truncate.js";
+import { truncateText } from "../utils/text.js";
 
 const exec = promisify(execFile);
 

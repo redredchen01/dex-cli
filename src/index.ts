@@ -27,7 +27,7 @@ export {
 export type { ToolDefinition } from "./core/tools.js";
 export { createSpinner } from "./utils/spinner.js";
 export type { Spinner } from "./utils/spinner.js";
-export { truncateText, estimateTokens } from "./utils/truncate.js";
+export { truncateText, estimateTokens } from "./utils/text.js";
 export {
   DexError,
   SkillNotFoundError,

@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { truncateText, estimateTokens } from "../truncate.js";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { truncateText, estimateTokens, readStdin } from "../text.js";
 
 describe("truncateText", () => {
   it("should not truncate short text", () => {
@@ -51,5 +51,23 @@ describe("estimateTokens", () => {
 
   it("should return 0 for empty string", () => {
     expect(estimateTokens("")).toBe(0);
+  });
+});
+
+describe("readStdin", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("should return null when stdin is a TTY", async () => {
+    // isTTY is a plain property, not a getter
+    const original = process.stdin.isTTY;
+    Object.defineProperty(process.stdin, "isTTY", { value: true, writable: true });
+    try {
+      const result = await readStdin();
+      expect(result).toBeNull();
+    } finally {
+      Object.defineProperty(process.stdin, "isTTY", { value: original, writable: true });
+    }
   });
 });

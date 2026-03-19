@@ -324,6 +324,10 @@ const TOOL_REGISTRY = new Map<string, ToolDefinition>([
 
 export const KNOWN_TOOLS = Array.from(TOOL_REGISTRY.keys());
 
+export function getAllToolDefinitions(): ToolDefinition[] {
+  return Array.from(TOOL_REGISTRY.values());
+}
+
 export function getToolsForSkill(
   allowedTools?: string[],
 ): ToolDefinition[] {

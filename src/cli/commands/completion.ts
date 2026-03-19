@@ -29,6 +29,10 @@ _dex_completions() {
       COMPREPLY=( $(compgen -W "${skills}" -- "\${cur}") )
       return 0
       ;;
+    serve)
+      COMPREPLY=( $(compgen -W "--http --mcp --port" -- "\${cur}") )
+      return 0
+      ;;
     explain|refactor|test-gen|tg)
       COMPREPLY=( $(compgen -f -- "\${cur}") )
       return 0
@@ -49,7 +53,7 @@ function generateZshCompletion(skillNames: string[]): string {
 _dex() {
   local -a commands=(
     'run:Run a skill by name'
-    'serve:Start ACP server'
+    'serve:Start ACP/MCP server'
     'skill:Manage skills'
     'config:Manage configuration'
     'init:Initialize .dex/ in project'
@@ -80,6 +84,16 @@ _dex() {
     '(-V --version)'{-V,--version}'[Show version]' \\
     '1: :->cmd' \\
     '*::arg:->args'
+
+  # serve subcommand flags
+  if [[ "\$words[1]" == "serve" ]]; then
+    _arguments \\
+      '--http[Start HTTP web dashboard]' \\
+      '--mcp[Start MCP server for Claude Desktop, Cursor, etc.]' \\
+      '-p[Port for HTTP transport]' \\
+      '--port[Port for HTTP transport]'
+    return
+  fi
 
   case "\$state" in
     cmd)
@@ -114,6 +128,9 @@ complete -c dex -n '__fish_use_subcommand' -a 'doctor' -d 'Check setup'
 complete -c dex -n '__fish_use_subcommand' -a 'completion' -d 'Shell completions'
 complete -c dex -n '__fish_use_subcommand' -a 'chain' -d 'Chain skills together'
 ${skillLines}
+complete -c dex -n '__fish_seen_subcommand_from serve' -l http -d 'Start HTTP web dashboard'
+complete -c dex -n '__fish_seen_subcommand_from serve' -l mcp -d 'Start MCP server'
+complete -c dex -n '__fish_seen_subcommand_from serve' -s p -l port -d 'Port for HTTP transport'
 complete -c dex -n '__fish_seen_subcommand_from skill' -a 'list info init add remove'
 complete -c dex -n '__fish_seen_subcommand_from config' -a 'list get set'
 complete -c dex -l verbose -s v -d 'Verbose output'

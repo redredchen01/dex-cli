@@ -48,6 +48,7 @@ cat src/auth.ts | dex explain   # Pipe code
 | `dex chat [--tools]` | Interactive AI chat with tool access |
 | `dex run <skill>` | Run any skill by name |
 | `dex serve` | Start ACP server for editor integration |
+| `dex serve --mcp` | Start MCP server for Claude Desktop, Cursor, etc. |
 | `dex doctor` | Check system setup |
 | `dex config list\|get\|set` | Manage configuration |
 | `dex skill list\|info\|init\|add\|remove` | Manage skills |
@@ -127,6 +128,43 @@ The server communicates via stdio JSON-RPC 2.0. Configure your editor to use `de
 - `session/new` — Create a new session for a skill
 - `session/prompt` — Execute a skill within a session
 - `session/cancel` — Cancel an active session
+
+## MCP Server (Model Context Protocol)
+
+Start an MCP-compliant stdio server so any MCP client can use dex skills and tools:
+
+```bash
+dex serve --mcp
+```
+
+### Claude Desktop
+
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "dex": {
+      "command": "dex",
+      "args": ["serve", "--mcp"]
+    }
+  }
+}
+```
+
+### Cursor / Windsurf / Cline
+
+Same pattern -- point the MCP client at `dex serve --mcp` as a stdio command.
+
+### Exposed Tools
+
+All dex skills are exposed as MCP tools with a `dex_` prefix (e.g. `dex_review`, `dex_commit-msg`). Built-in tools (`bash`, `read_file`, `write_file`, `list_files`, `search_files`, `apply_diff`) are also available.
+
+### Supported MCP Methods
+
+- `initialize` -- Returns protocol version, capabilities, and server info
+- `tools/list` -- Lists all available tools (skills + built-in)
+- `tools/call` -- Execute a tool by name with arguments
 
 ## Shell Completions
 

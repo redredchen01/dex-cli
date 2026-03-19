@@ -1,4 +1,5 @@
 import type { SkillHandler } from "../../types.js";
+import { streamQuery } from "../../handler-utils.js";
 
 const SYSTEM_PROMPT = `You are an expert at writing git commit messages. Write a concise, conventional commit message for the provided changes.
 
@@ -30,14 +31,7 @@ ${diff}
 
 ${ctx.context.gitLog ? `Recent commit history for style reference:\n${ctx.context.gitLog}` : ""}`;
 
-  for await (const msg of ctx.agent.query(prompt, {
-    systemPrompt: SYSTEM_PROMPT,
-  })) {
-    if (msg.type === "text" && msg.content) {
-      process.stdout.write(msg.content);
-    }
-  }
-  process.stdout.write("\n");
+  await streamQuery(ctx.agent, prompt, { systemPrompt: SYSTEM_PROMPT });
 };
 
 export default handler;

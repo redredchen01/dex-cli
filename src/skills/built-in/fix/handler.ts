@@ -1,4 +1,5 @@
 import type { SkillHandler } from "../../types.js";
+import { streamQuery } from "../../handler-utils.js";
 
 const SYSTEM_PROMPT = `You are an expert software engineer. Your task is to fix bugs and issues in code.
 
@@ -30,14 +31,7 @@ ${file.content}
 
 ${ctx.context.fileTree ? `Project structure:\n\`\`\`\n${ctx.context.fileTree}\n\`\`\`` : ""}`;
 
-  for await (const msg of ctx.agent.query(prompt, {
-    systemPrompt: SYSTEM_PROMPT,
-  })) {
-    if (msg.type === "text" && msg.content) {
-      process.stdout.write(msg.content);
-    }
-  }
-  process.stdout.write("\n");
+  await streamQuery(ctx.agent, prompt, { systemPrompt: SYSTEM_PROMPT });
 };
 
 export default handler;

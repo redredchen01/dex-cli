@@ -23,6 +23,18 @@ async function main() {
 
   if (existsSync(DEST)) await rm(DEST, { recursive: true });
 
+  // Write shared handler-utils.js for built-in skill handlers
+  const handlerUtilsJs = `export async function streamQuery(agent, prompt, options) {
+  for await (const msg of agent.query(prompt, options)) {
+    if (msg.type === "text" && msg.content) {
+      process.stdout.write(msg.content);
+    }
+  }
+  process.stdout.write("\\n");
+}
+`;
+  await writeFile(join(DEST, "..", "handler-utils.js"), handlerUtilsJs);
+
   const entries = await readdir(SRC, { withFileTypes: true });
   let count = 0;
 

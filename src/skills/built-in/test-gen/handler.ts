@@ -1,4 +1,5 @@
 import type { SkillHandler } from "../../types.js";
+import { streamQuery } from "../../handler-utils.js";
 
 const SYSTEM_PROMPT = `You are an expert at writing comprehensive tests. Generate tests for the provided code.
 
@@ -26,14 +27,7 @@ ${file.content}
 ${ctx.context.packageJson ? `package.json dependencies:\n${JSON.stringify(ctx.context.packageJson.dependencies ?? {}, null, 2)}` : ""}
 ${ctx.context.fileTree ? `Project structure:\n\`\`\`\n${ctx.context.fileTree}\n\`\`\`` : ""}`;
 
-  for await (const msg of ctx.agent.query(prompt, {
-    systemPrompt: SYSTEM_PROMPT,
-  })) {
-    if (msg.type === "text" && msg.content) {
-      process.stdout.write(msg.content);
-    }
-  }
-  process.stdout.write("\n");
+  await streamQuery(ctx.agent, prompt, { systemPrompt: SYSTEM_PROMPT });
 };
 
 export default handler;

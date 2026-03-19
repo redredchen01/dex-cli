@@ -80,7 +80,7 @@ describe("fs utils", () => {
       // Use this project's own package.json
       const result = await readPackageJson(process.cwd());
       expect(result).not.toBeNull();
-      expect(result!.name).toBe("dex-cli");
+      expect(result!.name).toBe("dexai-cli");
     });
 
     it("should return null when no package.json exists", async () => {

@@ -1,4 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
 import type {
   AgentInterface,
   AgentMessage,
@@ -6,11 +5,12 @@ import type {
 } from "../skills/types.js";
 import type { DexConfig } from "./config.js";
 import { AgentError } from "./errors.js";
+import { getToolsForSkill, executeToolCall } from "./tools.js";
 import {
-  getToolsForSkill,
-  toAnthropicToolSchema,
-  executeToolCall,
-} from "./tools.js";
+  getProvider,
+  type ProviderMessage,
+  type ProviderContentBlock,
+} from "./providers.js";
 
 const MAX_RETRIES = 3;
 const RETRY_DELAYS = [1000, 2000, 4000];
@@ -35,26 +35,12 @@ async function sleep(ms: number): Promise<void> {
 }
 
 export function createAgent(config: DexConfig): AgentInterface {
-  let client: Anthropic | null = null;
-
-  function getClient(): Anthropic {
-    if (client) return client;
-    const apiKey = config.apiKey ?? process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      throw new AgentError(
-        "Missing API key. Set ANTHROPIC_API_KEY environment variable or run: dex config set apiKey <your-key>",
-      );
-    }
-    client = new Anthropic({ apiKey });
-    return client;
-  }
-
   return {
     async *query(
       prompt: string,
       options?: AgentQueryOptions,
     ): AsyncGenerator<AgentMessage> {
-      const anthropic = getClient();
+      const provider = getProvider(config);
       const model = config.model;
       const maxTokens =
         options?.maxTokens ?? (config.maxTokens as number) ?? 8192;
@@ -64,17 +50,14 @@ export function createAgent(config: DexConfig): AgentInterface {
       const cwd = options?.cwd ?? process.cwd();
       const allowedTools = options?.tools ?? [];
 
-      const anthropicTools = hasTools
-        ? toolDefs.map(toAnthropicToolSchema)
-        : undefined;
-
-      const messages: Anthropic.MessageParam[] = [
+      const messages: ProviderMessage[] = [
         { role: "user", content: prompt },
       ];
 
       for (let turn = 0; turn < maxTurns; turn++) {
-        // Retry loop for this turn
-        let finalMessage: Anthropic.Message | null = null;
+        let finishResult: Awaited<
+          ReturnType<ReturnType<typeof provider.createStream>["finish"]>
+        > | null = null;
 
         for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
           if (attempt > 0) {
@@ -87,25 +70,20 @@ export function createAgent(config: DexConfig): AgentInterface {
           }
 
           try {
-            const stream = anthropic.messages.stream({
+            const stream = provider.createStream(
               model,
-              max_tokens: maxTokens,
-              system: options?.systemPrompt ?? "",
+              options?.systemPrompt ?? "",
               messages,
-              ...(anthropicTools ? { tools: anthropicTools } : {}),
-            });
+              hasTools ? toolDefs : undefined,
+              maxTokens,
+            );
 
             // Stream text deltas for live output
-            for await (const event of stream) {
-              if (
-                event.type === "content_block_delta" &&
-                event.delta.type === "text_delta"
-              ) {
-                yield { type: "text", content: event.delta.text };
-              }
+            for await (const text of stream.textDeltas) {
+              yield { type: "text", content: text };
             }
 
-            finalMessage = await stream.finalMessage();
+            finishResult = await stream.finish();
             break; // Success — exit retry loop
           } catch (err) {
             if (err instanceof AgentError) throw err;
@@ -117,22 +95,22 @@ export function createAgent(config: DexConfig): AgentInterface {
           }
         }
 
-        if (!finalMessage) {
+        if (!finishResult) {
           throw new AgentError("Failed to get response after retries");
         }
 
         // Check if the model wants to use tools
-        if (finalMessage.stop_reason === "tool_use" && hasTools) {
+        if (finishResult.stopReason === "tool_use" && hasTools) {
           // Append assistant message to history
           messages.push({
             role: "assistant",
-            content: finalMessage.content,
+            content: finishResult.content,
           });
 
           // Execute each tool call
-          const toolResults: Anthropic.ToolResultBlockParam[] = [];
+          const toolResults: ProviderContentBlock[] = [];
 
-          for (const block of finalMessage.content) {
+          for (const block of finishResult.content) {
             if (block.type === "tool_use") {
               yield {
                 type: "tool_use",
@@ -172,9 +150,9 @@ export function createAgent(config: DexConfig): AgentInterface {
         yield {
           type: "done",
           content: JSON.stringify({
-            inputTokens: finalMessage.usage.input_tokens,
-            outputTokens: finalMessage.usage.output_tokens,
-            stopReason: finalMessage.stop_reason,
+            inputTokens: finishResult.usage.inputTokens,
+            outputTokens: finishResult.usage.outputTokens,
+            stopReason: finishResult.stopReason,
             turns: turn + 1,
           }),
         };

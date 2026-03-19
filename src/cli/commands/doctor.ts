@@ -65,6 +65,13 @@ export function createDoctorCommand(
           },
         },
         {
+          name: "Provider",
+          async run() {
+            const provider = config.provider ?? "anthropic";
+            return { ok: true, detail: provider };
+          },
+        },
+        {
           name: "Model",
           async run() {
             return { ok: true, detail: config.model };
@@ -86,11 +93,12 @@ export function createDoctorCommand(
           name: "Skills loaded",
           async run() {
             const skills = registry.list();
-            const builtIn = skills.filter((s) => s.builtIn).length;
-            const user = skills.filter((s) => !s.builtIn).length;
+            const builtIn = skills.filter((s) => s.source === "built-in").length;
+            const user = skills.filter((s) => s.source === "user").length;
+            const project = skills.filter((s) => s.source === "project").length;
             return {
               ok: builtIn > 0,
-              detail: `${builtIn} built-in, ${user} user`,
+              detail: `${builtIn} built-in, ${user} user, ${project} project`,
             };
           },
         },

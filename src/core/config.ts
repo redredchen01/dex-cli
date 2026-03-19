@@ -10,6 +10,9 @@ export interface DexConfig {
   skillDirs: string[];
   verbose: boolean;
   activeProfile?: string;
+  provider?: "anthropic" | "openai" | "ollama";
+  openaiApiKey?: string;
+  ollamaHost?: string;
   [key: string]: unknown;
 }
 
@@ -153,6 +156,12 @@ export async function loadConfig(cwd?: string): Promise<DexConfig> {
   }
   if (process.env.DEX_MODEL) {
     merged.model = process.env.DEX_MODEL;
+  }
+  if (process.env.OPENAI_API_KEY) {
+    merged.openaiApiKey = process.env.OPENAI_API_KEY;
+  }
+  if (process.env.DEX_PROVIDER) {
+    merged.provider = process.env.DEX_PROVIDER as DexConfig["provider"];
   }
 
   return merged;

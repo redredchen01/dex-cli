@@ -11,6 +11,7 @@ import {
   getGitLog,
 } from "../utils/git.js";
 import { getFileTree, readFileContent, readPackageJson } from "../utils/fs.js";
+import { UsageTracker } from "../core/usage.js";
 
 export interface ExecuteOptions {
   args: Record<string, string>;
@@ -211,6 +212,18 @@ export async function executeSkill(
             logger.debug(
               `Tokens: ${usage.inputTokens} in / ${usage.outputTokens} out (${usage.stopReason}${turns})`,
             );
+          }
+          // Record usage in CLI mode (not ACP)
+          if (!captureOutput) {
+            const tracker = new UsageTracker();
+            tracker.record({
+              skill: manifest.name,
+              model: opts.config.model,
+              inputTokens: usage.inputTokens ?? 0,
+              outputTokens: usage.outputTokens ?? 0,
+              turns: usage.turns ?? 1,
+              timestamp: Date.now(),
+            }).catch(() => {});
           }
         } catch {}
       }

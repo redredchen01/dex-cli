@@ -13,7 +13,7 @@ export type {
 export { SkillRegistry } from "./skills/registry.js";
 export { validateManifest } from "./skills/validator.js";
 export { executeSkill, executeSkillForAcp } from "./skills/executor.js";
-export { loadConfig, setConfigValue, getConfigValue } from "./core/config.js";
+export { loadConfig, setConfigValue } from "./core/config.js";
 export type { DexConfig } from "./core/config.js";
 export { createAgent } from "./core/agent.js";
 export { createLogger } from "./core/logger.js";
@@ -28,7 +28,6 @@ export type { ToolDefinition } from "./core/tools.js";
 export { createSpinner } from "./utils/spinner.js";
 export type { Spinner } from "./utils/spinner.js";
 export { truncateText, estimateTokens } from "./utils/truncate.js";
-export { stripTypes } from "./utils/typescript.js";
 export {
   DexError,
   SkillNotFoundError,

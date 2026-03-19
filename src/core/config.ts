@@ -82,11 +82,3 @@ export async function setConfigValue(
   config[key] = value;
   await writeFile(configPath, JSON.stringify(config, null, 2) + "\n");
 }
-
-export async function getConfigValue(
-  key: string,
-  config?: DexConfig,
-): Promise<unknown> {
-  const cfg = config ?? (await loadConfig());
-  return cfg[key];
-}

@@ -8,7 +8,7 @@ function generateBashCompletion(skillNames: string[]): string {
 _dex_completions() {
   local cur="\${COMP_WORDS[COMP_CWORD]}"
   local prev="\${COMP_WORDS[COMP_CWORD-1]}"
-  local commands="run serve skill config init doctor completion ${skills} help"
+  local commands="run serve skill config init doctor completion chain ${skills} help"
   local skill_cmds="list info init add remove"
   local config_cmds="list get set"
 
@@ -55,6 +55,7 @@ _dex() {
     'init:Initialize .dex/ in project'
     'doctor:Check system setup'
     'completion:Generate shell completions'
+    'chain:Chain skills together'
     ${skillItems}
     'help:Show help'
   )
@@ -111,6 +112,7 @@ complete -c dex -n '__fish_use_subcommand' -a 'config' -d 'Manage config'
 complete -c dex -n '__fish_use_subcommand' -a 'init' -d 'Initialize project'
 complete -c dex -n '__fish_use_subcommand' -a 'doctor' -d 'Check setup'
 complete -c dex -n '__fish_use_subcommand' -a 'completion' -d 'Shell completions'
+complete -c dex -n '__fish_use_subcommand' -a 'chain' -d 'Chain skills together'
 ${skillLines}
 complete -c dex -n '__fish_seen_subcommand_from skill' -a 'list info init add remove'
 complete -c dex -n '__fish_seen_subcommand_from config' -a 'list get set'

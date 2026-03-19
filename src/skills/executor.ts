@@ -20,6 +20,7 @@ export interface ExecuteOptions {
   config: DexConfig;
   logger: Logger;
   captureOutput?: boolean;
+  stdinOverride?: string;
 }
 
 async function collectContext(
@@ -64,7 +65,7 @@ async function collectContext(
           ctx.packageJson = (await readPackageJson(opts.cwd)) ?? undefined;
           break;
         case "stdin":
-          ctx.stdin = (await readStdin()) ?? undefined;
+          ctx.stdin = opts.stdinOverride ?? (await readStdin()) ?? undefined;
           break;
       }
     }),

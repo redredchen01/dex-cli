@@ -17,6 +17,7 @@ import { createCompletionCommand } from "./commands/completion.js";
 import { createChatCommand } from "./commands/chat.js";
 import { createLoginCommand, createLogoutCommand } from "./commands/login.js";
 import { createUsageCommand } from "./commands/usage.js";
+import { createChainCommand } from "./commands/chain.js";
 import { getVersion } from "../core/version.js";
 
 export async function createProgram(): Promise<Command> {
@@ -80,6 +81,7 @@ export async function createProgram(): Promise<Command> {
   program.addCommand(createLoginCommand(config));
   program.addCommand(createLogoutCommand());
   program.addCommand(createUsageCommand());
+  program.addCommand(createChainCommand(registry, config, logger));
 
   // Init command
   program

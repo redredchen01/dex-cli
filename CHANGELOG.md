@@ -1,26 +1,26 @@
 # Changelog
 
-## 1.0.0 (2026-03-19)
+## 1.1.0 (2026-03-19)
 
-### Features
+### New Features
 
-- **CLI**: `dex review`, `dex commit-msg`, `dex explain`, `dex refactor`, `dex test-gen`, `dex fix`
-- **Tool Use**: Multi-turn agentic workflows with `bash`, `read_file`, `write_file`, `list_files`
-- **`dex fix`**: Agentic skill that reads code, writes fixes, and runs tests autonomously
+- **`dex create-skill`**: AI-powered skill generator — describe what you want, AI creates manifest + handler
+- **`dex pr`**: Generate pull request descriptions from branch diff
+- **`dex login` / `dex logout`**: Interactive API key setup with browser launch and validation
 - **`dex chat`**: Interactive multi-turn conversation with full tool access
-- **ACP Server**: `dex serve` for Zed/JetBrains editor integration via stdio JSON-RPC
-- **Skill System**: Extensible plugin architecture with `dex skill init/add/remove`
-- **Pipe Support**: `git diff | dex review`, `cat file | dex explain`
-- **Shell Completions**: `dex completion bash|zsh|fish`
-- **`dex doctor`**: System diagnostics and setup verification
-- **Spinner UX**: Animated progress during context collection and API calls
-- **Retry Logic**: Automatic retry with exponential backoff on rate limits/server errors
-- **Large Diff Truncation**: Auto-truncate diffs >40K chars to prevent token budget issues
-- **Token Usage**: `--verbose` shows input/output tokens and turn count
-- **`--json` Output**: Structured JSON for `config list/get/set` and error messages
-- **Security**: Path traversal protection on all file operations and skill management
+- **Markdown Rendering**: Streaming terminal markdown (bold, italic, code blocks, headers, lists)
+- **`search_files` tool**: Grep-based search across project files with glob filtering
+- **`apply_diff` tool**: Apply unified diff patches to files with validation
 
-### Built-in Skills
+### Improvements
+
+- Replaced Zod with manual validation (-8KB)
+- Unified executor (DRY: executeSkill + executeSkillForAcp merged)
+- Extracted `streamQuery` helper (removed 180 lines of handler boilerplate)
+- Merged small utilities into `text.ts`
+- Removed dead code (prompt.ts, getConfigValue, unused exports)
+
+### Built-in Skills (8)
 
 | Skill | Command | Tools |
 |-------|---------|-------|
@@ -29,11 +29,10 @@
 | explain | `dex explain [file]` | — |
 | refactor | `dex refactor <file>` | — |
 | test-gen | `dex test-gen <file>` | — |
-| fix | `dex fix <file> [-i "issue"]` | bash, read_file, write_file, list_files |
+| fix | `dex fix <file> [-i "issue"]` | bash, read_file, write_file, list_files, search_files, apply_diff |
+| pr | `dex pr [--base branch]` | — |
+| create-skill | `dex create-skill <name> -d "desc"` | read_file, write_file, list_files, bash |
 
-### Infrastructure
+## 1.0.0 (2026-03-19)
 
-- TypeScript strict mode
-- tsup bundling (29 kB package)
-- 133+ tests across 21 test suites
-- GitHub Actions CI (Node 20 + 22)
+Initial release. CLI with 6 skills, ACP server, skill system, pipe support, shell completions, doctor diagnostics, spinner UX, retry logic, token tracking, path traversal protection. 133+ tests.
